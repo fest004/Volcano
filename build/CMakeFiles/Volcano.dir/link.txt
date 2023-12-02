@@ -1,0 +1,1 @@
+/usr/bin/c++ -g -rdynamic CMakeFiles/Volcano.dir/main.cpp.o -o Volcano  /usr/local/lib/libglfw3.a /usr/lib/x86_64-linux-gnu/libvulkan.so -Wl,-Bstatic -lrt -Wl,-Bdynamic -lm -ldl -lX11 
