@@ -9,6 +9,7 @@ set(CMAKE_DEPENDS_LANGUAGES
 # The set of dependency files which are needed:
 set(CMAKE_DEPENDS_DEPENDENCY_FILES
   "/home/ubuntu/dev/cpp/Volcano/main.cpp" "CMakeFiles/Volcano.dir/main.cpp.o" "gcc" "CMakeFiles/Volcano.dir/main.cpp.o.d"
+  "/home/ubuntu/dev/cpp/Volcano/src/volcano.cpp" "CMakeFiles/Volcano.dir/src/volcano.cpp.o" "gcc" "CMakeFiles/Volcano.dir/src/volcano.cpp.o.d"
   )
 
 # Targets to which this target links.

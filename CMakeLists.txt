@@ -12,6 +12,7 @@ set(SOURCES_DIR
     src
 )
 
+#NOTE: Must refresh with 'cmake .. ' every time a new cpp file is added
 file(GLOB_RECURSE SOURCES ${SOURCES_DIR}/*.cpp)
 
 # Add the executable
