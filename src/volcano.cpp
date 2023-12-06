@@ -37,6 +37,7 @@ void Volcano::initVulkan()
 {
   createInstance();
   setupDebugMessenger();
+  selectPhysicalDevice();
  }
 
 void Volcano::createInstance()
@@ -83,9 +84,73 @@ void Volcano::createInstance()
   {
     throw std::runtime_error("Cannot create Vulkan Instance");
   }
+}
 
+
+void Volcano::selectPhysicalDevice()
+{
+  uint32_t supportedDevicesCount = 0;
+
+  vkEnumeratePhysicalDevices(m_VulkanInstance, &supportedDevicesCount, nullptr);
+
+  if (supportedDevicesCount == 0)
+    throw std::runtime_error("No supported Vulkan GPUs");
+
+  std::vector<VkPhysicalDevice> devices(supportedDevicesCount);
+  vkEnumeratePhysicalDevices(m_VulkanInstance, &supportedDevicesCount, devices.data());
+
+  for (const auto& device : devices)
+  {
+    if (isDeviceSuitable(device))
+    {
+      m_PhysicalDevice = device;
+      break;
+    }
+  }
+
+  if (m_PhysicalDevice == VK_NULL_HANDLE)
+  {
+    throw std::runtime_error("Failed to find suitable GPU!");
+  }
 
 }
+
+bool Volcano::isDeviceSuitable(VkPhysicalDevice device)
+{
+  QueueFamilyIndices indices = findQueueFamilies(device);
+
+  return indices.isComplete();
+}
+
+QueueFamilyIndices Volcano::findQueueFamilies(VkPhysicalDevice device)
+{
+  QueueFamilyIndices indices;
+
+  uint32_t queueFamilyCount = 0;
+  vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
+
+  std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
+  vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
+
+  int i = 0;
+
+  for (const auto& queueFamily : queueFamilies)
+  {
+    if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)
+    {
+      indices.graphicsFamily = i;
+    }
+
+    if (indices.isComplete())
+    {
+      break;
+    }
+
+    i++;
+  }
+  return indices;
+}
+
 
 bool Volcano::checkValidationLayerSupport()
 {
@@ -138,6 +203,47 @@ std::vector<const char*> Volcano::getRequiredExtensions()
     extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
   }
   return extensions;
+}
+
+void Volcano::CreateLogicalDevice()
+{
+  QueueFamilyIndices indices;
+
+
+  VkDeviceQueueCreateInfo queueCreateInfo{};
+  queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+  queueCreateInfo.queueFamilyIndex = indices.graphicsFamily.value(); 
+  queueCreateInfo.queueCount = 1;
+
+  float queuePriority = 1.0f;
+  queueCreateInfo.pQueuePriorities = &queuePriority;
+
+  VkPhysicalDeviceFeatures deviceFeatures{};
+
+  VkDeviceCreateInfo createInfo{};
+  createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+  createInfo.pQueueCreateInfos = &queueCreateInfo;
+  createInfo.queueCreateInfoCount = 1;
+  createInfo.pEnabledFeatures = &deviceFeatures;
+  createInfo.enabledExtensionCount = 0;
+
+  if (validationLayersOn)
+  {
+    createInfo.enabledLayerCount = static_cast<uint32_t>(m_ValidationLayers.size());
+    createInfo.ppEnabledLayerNames = m_ValidationLayers.data();
+  }
+  else
+  {
+    createInfo.enabledLayerCount = 0;
+  }
+
+  if (vkCreateDevice(m_PhysicalDevice, &createInfo, nullptr, &m_Device) != VK_SUCCESS)
+  {
+    throw std::runtime_error("Unable to create logic device");
+  }
+
+  vkGetDeviceQueue(m_Device, indices.graphicsFamily.value(), 0, &m_GraphicsQueue);
+ 
 }
 
 void Volcano::setupDebugMessenger()
@@ -204,6 +310,7 @@ void Volcano::onExit()
   }
 
 
+  vkDestroyDevice(m_Device, nullptr);
   vkDestroyInstance(m_VulkanInstance, nullptr);
   glfwDestroyWindow(m_Window);
   glfwTerminate();

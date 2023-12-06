@@ -2,6 +2,7 @@
 
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
+#include <optional>
 #include <string>
 #include <vector>
 #include <vulkan/vulkan.h>
@@ -22,6 +23,18 @@
 #endif
 
 
+struct QueueFamilyIndices
+{
+  //std::optional is a wrapper that contains no value until assigned
+  //Query if it has a value set or now with has_value()
+  std::optional<uint32_t> graphicsFamily;
+
+  bool isComplete()
+  {
+    return graphicsFamily.has_value();
+  }
+
+};
 
 class Volcano {
 public:
@@ -35,6 +48,8 @@ private:
 
   void createInstance();
   bool checkValidationLayerSupport();
+  void selectPhysicalDevice();
+void CreateLogicalDevice();
   std::vector<const char*> getRequiredExtensions();
   void setupDebugMessenger();
   static void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator);
@@ -44,10 +59,16 @@ private:
    VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, 
   const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger
   );
+  
+  bool isDeviceSuitable(VkPhysicalDevice device);
+  QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device);
  
 
   GLFWwindow *m_Window;
   VkInstance m_VulkanInstance;
+  VkPhysicalDevice m_PhysicalDevice;
+  VkDevice m_Device;
+  VkQueue m_GraphicsQueue;
   const std::vector<const char*> m_ValidationLayers = { "VK_LAYER_KHRONOS_validation" };
   VkDebugUtilsMessengerEXT m_DebugMessenger;
 
