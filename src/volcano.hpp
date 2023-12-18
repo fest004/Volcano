@@ -3,13 +3,9 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 #include <optional>
-#include <string>
 #include <vector>
 #include <vulkan/vulkan.h>
 #include <vulkan/vulkan_core.h>
-#include <stdexcept>
-#include <iostream>
-#include <set>
 
 #define VK_USE_PLATFORM_WIN32_KHR
 #define GLFW_INCLUDE_VULKAN
@@ -22,7 +18,7 @@
 #define APP_NAME "Volcano" 
 
 
-#ifdef NDEBUG
+#ifndef NDEBUG
   const bool validationLayersOn = false;
 #else
   const bool validationLayersOn = true;
@@ -45,7 +41,7 @@ struct QueueFamilyIndices
 
   bool isComplete()
   {
-    return graphicsFamily.has_value();
+    return graphicsFamily.has_value() && presentFamily.has_value();
   }
 
 };
@@ -87,11 +83,18 @@ private:
 
   VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
   VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
+
+  void createImageViews();
+
+
+  //Pipeline Methods
+  void createGraphicalPipeline();
+  VkShaderModule createShaderModule(const std::vector<char>& code);
  
 
   GLFWwindow *m_Window;
   VkInstance m_VulkanInstance;
-  VkPhysicalDevice m_PhysicalDevice;
+  VkPhysicalDevice m_PhysicalDevice = VK_NULL_HANDLE;
   VkDevice m_Device;
   VkQueue m_GraphicsQueue;
   VkSurfaceKHR m_Surface;
@@ -100,6 +103,8 @@ private:
   std::vector<VkImage> m_SwapChainImages;
   VkFormat m_SwapChainImageFormat;
   VkExtent2D m_SwapChainExtent;
+  std::vector<VkImageView> m_SwapChainImageViews;
+  VkPipelineLayout m_PipelineLayout;
 
 
   const std::vector<const char*> m_ValidationLayers = { "VK_LAYER_KHRONOS_validation" };

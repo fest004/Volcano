@@ -3,17 +3,25 @@
 #include <algorithm>
 #include <cstdint>
 #include <cstring>
+#include <iostream>
 #include <limits>
+#include <ostream>
+#include <set>
 #include <stdexcept>
 #include <vector>
 #include <vulkan/vulkan_core.h>
+#include "utils/fileread.hpp"
 
 
 void Volcano::run()
 {
+  std::cout << "Before InitWindow" << std::endl;
   initWindow();
+  std::cout << "Before InitVulkan" << std::endl;
   initVulkan();
+  std::cout << "Before Loop" << std::endl;
   loop();
+  std::cout << "Before onExit" << std::endl;
   onExit();
 }
 
@@ -43,7 +51,194 @@ void Volcano::initVulkan()
   selectPhysicalDevice();
   createLogicalDevice();
   createSwapChain();
- }
+  createImageViews();
+}
+
+//Pipeline Methods
+
+void Volcano::createGraphicalPipeline()
+{
+  auto vertShaderCode = readFile("../src/shaders/vert.spv");
+  auto fragShaderCode = readFile("../src/shaders/vert.spv");
+
+  VkShaderModule vertShaderModule = createShaderModule(vertShaderCode);
+  VkShaderModule fragShaderModule = createShaderModule(fragShaderCode);
+
+  VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
+  vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO; 
+  vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
+  vertShaderStageInfo.module = vertShaderModule;
+  vertShaderStageInfo.pName = "main";
+
+  VkPipelineShaderStageCreateInfo fragShaderStageInfo{};
+  fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO; 
+  fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+  fragShaderStageInfo.module = fragShaderModule;
+  fragShaderStageInfo.pName = "main";
+
+  VkPipelineShaderStageCreateInfo shaderStages[] = {vertShaderStageInfo, fragShaderStageInfo};
+
+  VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
+  vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+  vertexInputInfo.vertexBindingDescriptionCount = 0;
+  vertexInputInfo.pVertexBindingDescriptions = nullptr;
+  vertexInputInfo.vertexBindingDescriptionCount = 0;
+  vertexInputInfo.pVertexAttributeDescriptions = nullptr;
+
+  VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
+  inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+  inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+  inputAssembly.primitiveRestartEnable = VK_FALSE;
+
+  VkViewport viewport{};
+  viewport.x = 0.0f;
+  viewport.y = 0.0f;
+  viewport.width = (float)m_SwapChainExtent.width;
+  viewport.height = (float)m_SwapChainExtent.height;
+  viewport.minDepth = 0.0f;
+  viewport.maxDepth = 1.0f;
+
+  VkRect2D scissor{};
+  scissor.offset = {0, 0};
+  scissor.extent = m_SwapChainExtent;
+
+   
+
+  VkPipelineViewportStateCreateInfo viewportInfo{};
+  viewportInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+  viewportInfo.viewportCount = 1;
+  viewportInfo.pViewports = &viewport;
+  viewportInfo.scissorCount = 1;
+  viewportInfo.pScissors = &scissor;
+
+  VkPipelineRasterizationStateCreateInfo rasterizerInfo{};
+  rasterizerInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+  rasterizerInfo.depthClampEnable = VK_FALSE;
+  rasterizerInfo.rasterizerDiscardEnable = VK_FALSE;
+  rasterizerInfo.polygonMode = VK_POLYGON_MODE_FILL;
+  rasterizerInfo.lineWidth = 1.0f;
+  rasterizerInfo.cullMode = VK_CULL_MODE_BACK_BIT;
+  rasterizerInfo.frontFace =VK_FRONT_FACE_CLOCKWISE;
+  rasterizerInfo.depthBiasEnable = VK_FALSE;
+  rasterizerInfo.depthBiasConstantFactor = 0.0f;
+  rasterizerInfo.depthBiasClamp = 0.0f;
+  rasterizerInfo.depthBiasSlopeFactor = 0.0f;
+
+  VkPipelineMultisampleStateCreateInfo multiSampleInfo{};
+  multiSampleInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+  multiSampleInfo.sampleShadingEnable = VK_FALSE;
+  multiSampleInfo.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+  multiSampleInfo.minSampleShading = 1.0f;
+  multiSampleInfo.pSampleMask = nullptr;
+  multiSampleInfo.alphaToCoverageEnable = VK_FALSE;
+  multiSampleInfo.alphaToOneEnable = VK_FALSE;
+
+  VkPipelineColorBlendAttachmentState colorBlendAttachmentInfo{};
+  colorBlendAttachmentInfo.colorWriteMask = 
+    VK_COLOR_COMPONENT_R_BIT | 
+    VK_COLOR_COMPONENT_G_BIT | 
+    VK_COLOR_COMPONENT_B_BIT | 
+    VK_COLOR_COMPONENT_A_BIT ;
+  colorBlendAttachmentInfo.blendEnable = VK_FALSE;
+
+  
+  VkPipelineColorBlendStateCreateInfo colorBlending{};
+  colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+  colorBlending.logicOpEnable = VK_FALSE;
+  colorBlending.logicOp = VK_LOGIC_OP_COPY;
+  colorBlending.attachmentCount = 1;
+  colorBlending.pAttachments = &colorBlendAttachmentInfo;
+  colorBlending.blendConstants[0] = 0.0f;
+  colorBlending.blendConstants[1] = 0.0f;
+  colorBlending.blendConstants[2] = 0.0f;
+  colorBlending.blendConstants[3] = 0.0f;
+
+  std::vector<VkDynamicState> dynamicStates = 
+  {
+    VK_DYNAMIC_STATE_VIEWPORT,
+    VK_DYNAMIC_STATE_SCISSOR
+
+  };
+
+  VkPipelineDynamicStateCreateInfo dynamicStateInfo{};
+  dynamicStateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+  dynamicStateInfo.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
+  dynamicStateInfo.pDynamicStates = dynamicStates.data();
+
+
+
+  VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
+  pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+  pipelineLayoutInfo.setLayoutCount = 0;
+  pipelineLayoutInfo.pSetLayouts = nullptr;
+  pipelineLayoutInfo.pushConstantRangeCount = 0;
+  pipelineLayoutInfo.pPushConstantRanges = nullptr;
+
+  if (vkCreatePipelineLayout(m_Device, &pipelineLayoutInfo, nullptr, &m_PipelineLayout) != VK_SUCCESS)
+  {
+    throw std::runtime_error("Failed to create Pipeline Layout");
+  }
+
+  
+
+
+
+
+  vkDestroyShaderModule(m_Device, fragShaderModule, nullptr);
+  vkDestroyShaderModule(m_Device, vertShaderModule, nullptr);
+}
+
+VkShaderModule Volcano::createShaderModule(const std::vector<char>& code)
+{
+  VkShaderModuleCreateInfo createInfo{};
+  createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+  createInfo.codeSize = code.size();
+  createInfo.pCode = reinterpret_cast<const uint32_t*>(code.data());
+
+  VkShaderModule shaderModule;
+
+  if (vkCreateShaderModule(m_Device, &createInfo, nullptr, &shaderModule) != VK_SUCCESS)
+  {
+    throw std::runtime_error("Failed to create shader module");
+  }
+
+  return shaderModule;
+}
+
+
+void Volcano::createImageViews()
+{
+  m_SwapChainImageViews.resize(m_SwapChainImages.size());
+
+  for (size_t i = 0; i < m_SwapChainImages.size(); i++)
+  {
+    VkImageViewCreateInfo createInfo{};
+    createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    createInfo.image = m_SwapChainImages[i];
+    createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    createInfo.format = m_SwapChainImageFormat;
+
+    createInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+    createInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+    createInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+    createInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+
+    createInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    createInfo.subresourceRange.baseMipLevel = 0;
+    createInfo.subresourceRange.levelCount = 1;
+    createInfo.subresourceRange.baseArrayLayer = 0;
+    createInfo.subresourceRange.layerCount = 1;
+
+    if (vkCreateImageView(m_Device, &createInfo, nullptr, &m_SwapChainImageViews[i]) != VK_SUCCESS)
+    {
+      throw std::runtime_error("Failed to create Image Views!");
+    }
+
+  }
+
+
+
+}
 
 void Volcano::createInstance()
 {
@@ -150,7 +345,7 @@ VkSurfaceFormatKHR Volcano::chooseSwapSurfaceFormat(const std::vector<VkSurfaceF
 {
   for (const auto& availableFormat : availableFormats)
   {
-    if (availableFormat.format == VK_FORMAT_B8G8R8_SRGB && availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
+    if (availableFormat.format == VK_FORMAT_B8G8R8A8_SRGB && availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
     {
       return availableFormat;
     }
@@ -162,63 +357,59 @@ VkSurfaceFormatKHR Volcano::chooseSwapSurfaceFormat(const std::vector<VkSurfaceF
 
 void Volcano::createSwapChain()
 {
-  SwapChainSupportDetails swapChainSupport = querySwapChainSupport(m_PhysicalDevice);
+      SwapChainSupportDetails swapChainSupport = querySwapChainSupport(m_PhysicalDevice);
 
-  VkSurfaceFormatKHR surfaceFormat = chooseSwapSurfaceFormat(swapChainSupport.formats);
-  VkPresentModeKHR presentMode = chooseSwapPresentMode(swapChainSupport.presentModes);
-  VkExtent2D extent = chooseSwapExtent(swapChainSupport.capabilities);
+        VkSurfaceFormatKHR surfaceFormat = chooseSwapSurfaceFormat(swapChainSupport.formats);
+        VkPresentModeKHR presentMode = chooseSwapPresentMode(swapChainSupport.presentModes);
+        VkExtent2D extent = chooseSwapExtent(swapChainSupport.capabilities);
 
-  uint32_t imageCount = swapChainSupport.capabilities.minImageCount + 1;
+        uint32_t imageCount = swapChainSupport.capabilities.minImageCount + 1;
+        if (swapChainSupport.capabilities.maxImageCount > 0 && imageCount > swapChainSupport.capabilities.maxImageCount) {
+            imageCount = swapChainSupport.capabilities.maxImageCount;
+        }
 
-  if (swapChainSupport.capabilities.maxImageCount > 0 && imageCount > swapChainSupport.capabilities.maxImageCount)
-  {
-    imageCount = swapChainSupport.capabilities.maxImageCount;
-  }
+        VkSwapchainCreateInfoKHR createInfo{};
+        createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+        createInfo.surface = m_Surface;
 
-  VkSwapchainCreateInfoKHR createInfo{};
-  createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-  createInfo.surface = m_Surface;
-  createInfo.minImageCount = imageCount;
-  createInfo.imageFormat = surfaceFormat.format;
-  createInfo.imageColorSpace = surfaceFormat.colorSpace;
-  createInfo.imageExtent = extent;
-  createInfo.imageArrayLayers = 1;
-  createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+        createInfo.minImageCount = imageCount;
+        createInfo.imageFormat = surfaceFormat.format;
+        createInfo.imageColorSpace = surfaceFormat.colorSpace;
+        createInfo.imageExtent = extent;
+        createInfo.imageArrayLayers = 1;
+        createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
+        QueueFamilyIndices indices = findQueueFamilies(m_PhysicalDevice);
+        uint32_t queueFamilyIndices[] = {indices.graphicsFamily.value(), indices.presentFamily.value()};
 
+        if (indices.graphicsFamily != indices.presentFamily) 
+        {
+            createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+            createInfo.queueFamilyIndexCount = 2;
+            createInfo.pQueueFamilyIndices = queueFamilyIndices;
+        } 
+        else 
+        {
+            createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        }
 
+        createInfo.preTransform = swapChainSupport.capabilities.currentTransform;
+        createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+        createInfo.presentMode = presentMode;
+        createInfo.clipped = VK_TRUE;
 
+        createInfo.oldSwapchain = VK_NULL_HANDLE;
 
-  QueueFamilyIndices indices = findQueueFamilies(m_PhysicalDevice);
-  uint32_t queueFamilyIndices[] = {indices.graphicsFamily.value(), indices.presentFamily.value()};
+        if (vkCreateSwapchainKHR(m_Device, &createInfo, nullptr, &m_SwapChain) != VK_SUCCESS) {
+            throw std::runtime_error("failed to create swap chain!");
+        }
 
-  if (indices.graphicsFamily != indices.presentFamily) {
-      createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
-      createInfo.queueFamilyIndexCount = 2;
-      createInfo.pQueueFamilyIndices = queueFamilyIndices;
-  } else {
-      createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-      createInfo.queueFamilyIndexCount = 0; // Optional
-      createInfo.pQueueFamilyIndices = nullptr; // Optional
-  }
+        vkGetSwapchainImagesKHR(m_Device, m_SwapChain, &imageCount, nullptr);
+        m_SwapChainImages.resize(imageCount);
+        vkGetSwapchainImagesKHR(m_Device, m_SwapChain, &imageCount, m_SwapChainImages.data());
 
-  createInfo.preTransform = swapChainSupport.capabilities.currentTransform;
-  createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-  createInfo.presentMode = presentMode;
-  createInfo.clipped = VK_TRUE;
-  createInfo.oldSwapchain = VK_NULL_HANDLE;
-  
-  if (vkCreateSwapchainKHR(m_Device, &createInfo, nullptr, &m_SwapChain))
-  {
-    throw std::runtime_error("Failed to create Swapchain!");
-  }
-
-
-  vkGetSwapchainImagesKHR(m_Device, m_SwapChain, &imageCount, nullptr);
-  m_SwapChainImages.resize(imageCount);
-  vkGetSwapchainImagesKHR(m_Device, m_SwapChain, &imageCount, m_SwapChainImages.data());
-
-
+        m_SwapChainImageFormat = surfaceFormat.format;
+        m_SwapChainExtent = extent;
 
 }
 
@@ -252,23 +443,27 @@ VkExtent2D Volcano::chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilitie
       static_cast<uint32_t>(height)
     };
 
+
+
+
     actualExtent.width = std::clamp(actualExtent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
-    actualExtent.height= std::clamp(actualExtent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
+    actualExtent.height = std::clamp(actualExtent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
+
 
     return actualExtent;
   }
   
 }
 
-QueueFamilyIndices Volcano::findQueueFamilies(VkPhysicalDevice device)
+QueueFamilyIndices Volcano::findQueueFamilies(VkPhysicalDevice pDevice)
 {
   QueueFamilyIndices indices;
 
   uint32_t queueFamilyCount = 0;
-  vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
+  vkGetPhysicalDeviceQueueFamilyProperties(pDevice, &queueFamilyCount, nullptr);
 
   std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
-  vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
+  vkGetPhysicalDeviceQueueFamilyProperties(pDevice, &queueFamilyCount, queueFamilies.data());
 
   int i = 0;
 
@@ -280,7 +475,7 @@ QueueFamilyIndices Volcano::findQueueFamilies(VkPhysicalDevice device)
     }
 
     VkBool32 presentSupport = false;
-    vkGetPhysicalDeviceSurfaceSupportKHR(device, i, m_Surface, &presentSupport);
+    vkGetPhysicalDeviceSurfaceSupportKHR(pDevice, i, m_Surface, &presentSupport);
 
     if (presentSupport)
       indices.presentFamily = i;
@@ -399,14 +594,18 @@ std::vector<const char*> Volcano::getRequiredExtensions()
   createInfo.enabledExtensionCount = static_cast<uint32_t>(m_DeviceExtensions.size());
   createInfo.ppEnabledExtensionNames = m_DeviceExtensions.data();
 
-  if (validationLayersOn) {
+  if (validationLayersOn) 
+  {
       createInfo.enabledLayerCount = static_cast<uint32_t>(m_ValidationLayers.size());
       createInfo.ppEnabledLayerNames = m_ValidationLayers.data();
-  } else {
+  } 
+  else 
+  {
       createInfo.enabledLayerCount = 0;
   }
 
-  if (vkCreateDevice(m_PhysicalDevice, &createInfo, nullptr, &m_Device) != VK_SUCCESS) {
+  if (vkCreateDevice(m_PhysicalDevice, &createInfo, nullptr, &m_Device) != VK_SUCCESS) 
+  {
       throw std::runtime_error("failed to create logical device!");
   }
 
@@ -417,24 +616,28 @@ std::vector<const char*> Volcano::getRequiredExtensions()
 
 SwapChainSupportDetails Volcano::querySwapChainSupport(VkPhysicalDevice pDevice)
 {
-  SwapChainSupportDetails details;
+ SwapChainSupportDetails details;
 
   vkGetPhysicalDeviceSurfaceCapabilitiesKHR(pDevice, m_Surface, &details.capabilities);
 
   uint32_t formatCount;
-  vkGetPhysicalDeviceSurfaceFormatsKHR(pDevice, m_Surface, &formatCount, details.formats.data());
+  vkGetPhysicalDeviceSurfaceFormatsKHR(pDevice, m_Surface, &formatCount, nullptr);
 
-  if (formatCount != 0)
-  {
-    details.formats.resize(formatCount);
-    vkGetPhysicalDeviceSurfaceFormatsKHR(pDevice, m_Surface, &formatCount, details.formats.data());
+  if (formatCount != 0) {
+      details.formats.resize(formatCount);
+      vkGetPhysicalDeviceSurfaceFormatsKHR(pDevice, m_Surface, &formatCount, details.formats.data());
   }
 
   uint32_t presentModeCount;
-  vkGetPhysicalDeviceSurfacePresentModesKHR(pDevice, m_Surface, &presentModeCount, details.presentModes.data());
+  vkGetPhysicalDeviceSurfacePresentModesKHR(pDevice, m_Surface, &presentModeCount, nullptr);
 
+  if (presentModeCount != 0) {
+      details.presentModes.resize(presentModeCount);
+      vkGetPhysicalDeviceSurfacePresentModesKHR(pDevice, m_Surface, &presentModeCount, details.presentModes.data());
+  }
 
   return details;
+
 }
 
 void Volcano::setupDebugMessenger()
@@ -495,14 +698,20 @@ VkResult Volcano::CreateDebugUtilsMessengerEXT
 
 void Volcano::onExit()
 {
-  if (validationLayersOn)
+  for (auto imageView : m_SwapChainImageViews)
   {
-    DestroyDebugUtilsMessengerEXT(m_VulkanInstance, m_DebugMessenger, nullptr);
+    vkDestroyImageView(m_Device, imageView, nullptr);
   }
 
 
   vkDestroySwapchainKHR(m_Device, m_SwapChain, nullptr);
   vkDestroyDevice(m_Device, nullptr);
+
+  if (validationLayersOn)
+  {
+    DestroyDebugUtilsMessengerEXT(m_VulkanInstance, m_DebugMessenger, nullptr);
+  }
+
   vkDestroySurfaceKHR(m_VulkanInstance, m_Surface, nullptr);
   vkDestroyInstance(m_VulkanInstance, nullptr);
   glfwDestroyWindow(m_Window);

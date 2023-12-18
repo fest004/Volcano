@@ -9,6 +9,7 @@ set(CMAKE_DEPENDS_LANGUAGES
 # The set of dependency files which are needed:
 set(CMAKE_DEPENDS_DEPENDENCY_FILES
   "/home/felix/dev/projects/Volcano/main.cpp" "CMakeFiles/Volcano.dir/main.cpp.o" "gcc" "CMakeFiles/Volcano.dir/main.cpp.o.d"
+  "/home/felix/dev/projects/Volcano/src/utils/fileread.cpp" "CMakeFiles/Volcano.dir/src/utils/fileread.cpp.o" "gcc" "CMakeFiles/Volcano.dir/src/utils/fileread.cpp.o.d"
   "/home/felix/dev/projects/Volcano/src/volcano.cpp" "CMakeFiles/Volcano.dir/src/volcano.cpp.o" "gcc" "CMakeFiles/Volcano.dir/src/volcano.cpp.o.d"
   )
 

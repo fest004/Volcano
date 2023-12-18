@@ -153,6 +153,30 @@ main.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Volcano.dir/build.make CMakeFiles/Volcano.dir/main.cpp.s
 .PHONY : main.cpp.s
 
+src/utils/fileread.o: src/utils/fileread.cpp.o
+.PHONY : src/utils/fileread.o
+
+# target to build an object file
+src/utils/fileread.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Volcano.dir/build.make CMakeFiles/Volcano.dir/src/utils/fileread.cpp.o
+.PHONY : src/utils/fileread.cpp.o
+
+src/utils/fileread.i: src/utils/fileread.cpp.i
+.PHONY : src/utils/fileread.i
+
+# target to preprocess a source file
+src/utils/fileread.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Volcano.dir/build.make CMakeFiles/Volcano.dir/src/utils/fileread.cpp.i
+.PHONY : src/utils/fileread.cpp.i
+
+src/utils/fileread.s: src/utils/fileread.cpp.s
+.PHONY : src/utils/fileread.s
+
+# target to generate assembly for a file
+src/utils/fileread.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Volcano.dir/build.make CMakeFiles/Volcano.dir/src/utils/fileread.cpp.s
+.PHONY : src/utils/fileread.cpp.s
+
 src/volcano.o: src/volcano.cpp.o
 .PHONY : src/volcano.o
 
@@ -189,6 +213,9 @@ help:
 	@echo "... main.o"
 	@echo "... main.i"
 	@echo "... main.s"
+	@echo "... src/utils/fileread.o"
+	@echo "... src/utils/fileread.i"
+	@echo "... src/utils/fileread.s"
 	@echo "... src/volcano.o"
 	@echo "... src/volcano.i"
 	@echo "... src/volcano.s"

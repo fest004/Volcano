@@ -81,12 +81,12 @@ clean: CMakeFiles/Volcano.dir/clean
 CMakeFiles/Volcano.dir/all:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Volcano.dir/build.make CMakeFiles/Volcano.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Volcano.dir/build.make CMakeFiles/Volcano.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/felix/dev/projects/Volcano/build/CMakeFiles --progress-num=1,2,3 "Built target Volcano"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/felix/dev/projects/Volcano/build/CMakeFiles --progress-num=1,2,3,4 "Built target Volcano"
 .PHONY : CMakeFiles/Volcano.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/Volcano.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/felix/dev/projects/Volcano/build/CMakeFiles 3
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/felix/dev/projects/Volcano/build/CMakeFiles 4
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/Volcano.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/felix/dev/projects/Volcano/build/CMakeFiles 0
 .PHONY : CMakeFiles/Volcano.dir/rule
