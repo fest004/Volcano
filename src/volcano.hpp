@@ -18,7 +18,7 @@
 #define APP_NAME "Volcano" 
 
 
-#ifndef NDEBUG
+#ifdef NDEBUG
   const bool validationLayersOn = false;
 #else
   const bool validationLayersOn = true;
@@ -86,11 +86,22 @@ private:
 
   void createImageViews();
 
+  //Drawing
+  void createFrameBuffers();
+  void createCommandPool();
+  void createCommandBuffer();
+  void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
+
+  void createSyncObjects();
+
 
   //Pipeline Methods
   void createGraphicalPipeline();
   VkShaderModule createShaderModule(const std::vector<char>& code);
+  void createRenderPass();
  
+  //Rendering {FFS FINALLY}
+  void drawFrame();
 
   GLFWwindow *m_Window;
   VkInstance m_VulkanInstance;
@@ -104,9 +115,19 @@ private:
   VkFormat m_SwapChainImageFormat;
   VkExtent2D m_SwapChainExtent;
   std::vector<VkImageView> m_SwapChainImageViews;
+  VkRenderPass m_RenderPass;
   VkPipelineLayout m_PipelineLayout;
+  VkPipeline m_GraphicsPipeline;
+  VkCommandPool m_CommandPool;
+  VkCommandBuffer m_CommandBuffer;
+
+  VkSemaphore m_ImageAvailableSemaphore;
+  VkSemaphore m_RenderFinishedSemaphore;
+  VkFence m_InFlightFence;
+  
 
 
+  std::vector<VkFramebuffer> m_SwapChainFrameBuffer;
   const std::vector<const char*> m_ValidationLayers = { "VK_LAYER_KHRONOS_validation" };
   const std::vector<const char*> m_DeviceExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
   VkDebugUtilsMessengerEXT m_DebugMessenger;

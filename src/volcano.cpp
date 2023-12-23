@@ -12,6 +12,7 @@
 #include <vulkan/vulkan_core.h>
 #include "utils/fileread.hpp"
 
+//2 Weeks and 1K lines of code for a single triangle lol
 
 void Volcano::run()
 {
@@ -30,7 +31,9 @@ void Volcano::loop()
   while (!glfwWindowShouldClose(m_Window))
   {
     glfwPollEvents();
+    drawFrame();
   }
+  vkDeviceWaitIdle(m_Device);
 }
 
 
@@ -52,14 +55,261 @@ void Volcano::initVulkan()
   createLogicalDevice();
   createSwapChain();
   createImageViews();
+  createRenderPass();
+  createGraphicalPipeline();
+  createFrameBuffers();
+  createCommandPool();
+  createCommandBuffer();
+  createSyncObjects();
 }
+
+
+
+void Volcano::createSyncObjects()
+{
+  VkSemaphoreCreateInfo semaphoreInfo{};
+  semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
+  VkFenceCreateInfo fenceInfo{};
+  fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+  fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+
+  if (vkCreateSemaphore(m_Device, &semaphoreInfo, nullptr, &m_ImageAvailableSemaphore) != VK_SUCCESS)
+  {
+    throw std::runtime_error("Failed to create image semaphore!");
+  }
+
+  if (vkCreateSemaphore(m_Device, &semaphoreInfo, nullptr, &m_RenderFinishedSemaphore) != VK_SUCCESS)
+  {
+    throw std::runtime_error("Failed to create render finished semaphore!");
+  }
+
+  if (vkCreateFence(m_Device, &fenceInfo, nullptr, &m_InFlightFence) != VK_SUCCESS)
+  {
+    throw std::runtime_error("Failed to create image semaphore!");
+  }
+
+
+
+}
+
+void Volcano::drawFrame()
+{
+  vkWaitForFences(m_Device, 1, &m_InFlightFence, VK_TRUE, UINT64_MAX);
+  vkResetFences(m_Device, 1, &m_InFlightFence);
+
+  uint32_t imageIndex;
+  vkAcquireNextImageKHR(m_Device, m_SwapChain, UINT64_MAX, m_ImageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
+
+  vkResetCommandBuffer(m_CommandBuffer, 0);
+  recordCommandBuffer(m_CommandBuffer, imageIndex);
+
+  VkSubmitInfo submitInfo{};
+  submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+
+  VkSemaphore waitSephamores[] = {m_ImageAvailableSemaphore};
+  VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+  submitInfo.waitSemaphoreCount = 1;
+  submitInfo.pWaitSemaphores = waitSephamores;
+  submitInfo.pWaitDstStageMask = waitStages;
+   
+  submitInfo.commandBufferCount = 1;
+  submitInfo.pCommandBuffers = &m_CommandBuffer;
+
+  VkSemaphore signalSemaphores[] = {m_RenderFinishedSemaphore};
+  submitInfo.signalSemaphoreCount = 1;
+  submitInfo.pSignalSemaphores = signalSemaphores;
+
+  if (vkQueueSubmit(m_GraphicsQueue, 1, &submitInfo, m_InFlightFence) != VK_SUCCESS)
+  {
+    throw std::runtime_error("Failed to submit draw command buffer!");
+  }
+
+  VkPresentInfoKHR presentInfo{};
+  presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+  presentInfo.waitSemaphoreCount = 1;
+  presentInfo.pWaitSemaphores = signalSemaphores;
+
+  VkSwapchainKHR swapChains[] = {m_SwapChain};
+  presentInfo.swapchainCount = 1;
+  presentInfo.pSwapchains = swapChains;
+  presentInfo.pImageIndices = &imageIndex;
+  presentInfo.pResults = nullptr;
+  vkQueuePresentKHR(m_PresentQueue, &presentInfo);
+
+  
+}
+
+void Volcano::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex)
+{
+  VkCommandBufferBeginInfo beginInfo{};
+  beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+  beginInfo.flags = 0;
+  beginInfo.pInheritanceInfo = nullptr;
+
+  if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS)
+  {
+    throw std::runtime_error("Failed to begin recording command buffer!");
+  }
+
+  VkRenderPassBeginInfo renderPassInfo{};
+  renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+  renderPassInfo.renderPass = m_RenderPass;
+  renderPassInfo.framebuffer = m_SwapChainFrameBuffer[imageIndex];
+  renderPassInfo.renderArea.offset = {0, 0};
+  renderPassInfo.renderArea.extent = m_SwapChainExtent;
+
+  VkClearValue clearColor = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
+  renderPassInfo.clearValueCount = 1;
+  renderPassInfo.pClearValues = &clearColor;
+
+  //Returns null either way so no error handling 
+  vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+  vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_GraphicsPipeline);
+
+  VkViewport viewport{};
+  viewport.x = 0.0f;
+  viewport.y = 0.0f;
+  viewport.width = static_cast<uint32_t>(m_SwapChainExtent.width);
+  viewport.height = static_cast<uint32_t>(m_SwapChainExtent.height);
+  viewport.minDepth = 0.0f;
+  viewport.maxDepth = 1.0f;
+  vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+
+  VkRect2D scissor{};
+  scissor.offset = {0, 0};
+  scissor.extent = m_SwapChainExtent;
+  vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+
+  vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+
+  vkCmdEndRenderPass(commandBuffer);
+
+  if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS)
+  {
+    throw std::runtime_error("Failed to record to command buffer!");
+  }
+
+
+
+}
+
+void Volcano::createCommandBuffer()
+{
+  VkCommandBufferAllocateInfo allocateInfo{};
+  allocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+  allocateInfo.commandPool = m_CommandPool;
+  allocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+  allocateInfo.commandBufferCount = 1;
+
+  if (vkAllocateCommandBuffers(m_Device, &allocateInfo, &m_CommandBuffer) != VK_SUCCESS)
+  {
+    throw std::runtime_error("Failed to allocate command buffers!");
+  }
+
+}
+
+void Volcano::createFrameBuffers()
+{
+  m_SwapChainFrameBuffer.resize(m_SwapChainImageViews.size());
+
+  for (size_t i = 0; i < m_SwapChainImageViews.size(); i++)
+  {
+    VkImageView attachments[] = 
+    {
+      m_SwapChainImageViews[i]
+    };
+
+ VkFramebufferCreateInfo frameBufferInfo{};
+    frameBufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+    frameBufferInfo.renderPass = m_RenderPass; 
+    frameBufferInfo.attachmentCount = 1;
+    frameBufferInfo.pAttachments = attachments;
+    frameBufferInfo.width = m_SwapChainExtent.width;
+    frameBufferInfo.height = m_SwapChainExtent.height;
+    frameBufferInfo.layers = 1;
+
+
+   if (vkCreateFramebuffer(m_Device, &frameBufferInfo, nullptr, &m_SwapChainFrameBuffer[i]) != VK_SUCCESS)
+   {
+     throw std::runtime_error("Failed to create Framebuffer!");
+
+   }
+ }
+}
+
+
+void Volcano::createCommandPool()
+{
+  QueueFamilyIndices queueFamilyIndeces = findQueueFamilies(m_PhysicalDevice);
+
+  VkCommandPoolCreateInfo poolInfo{};
+  poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+  poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+  poolInfo.queueFamilyIndex = queueFamilyIndeces.graphicsFamily.value();
+
+  if (vkCreateCommandPool(m_Device, &poolInfo, nullptr, &m_CommandPool) != VK_SUCCESS)
+  {
+    throw std::runtime_error("Failed to create command pool!");
+  }
+
+}
+
+void Volcano::createRenderPass()
+{
+
+  VkAttachmentDescription colorAttachment{};
+  colorAttachment.format = m_SwapChainImageFormat;
+  colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+  colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+  colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+  colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+  colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+  colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+  colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+
+  VkAttachmentReference colorAttachmentRef{};
+  colorAttachmentRef.attachment = 0;
+  colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+  VkSubpassDescription subpass{};
+  subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+  subpass.colorAttachmentCount = 1;
+  subpass.pColorAttachments = &colorAttachmentRef;
+
+  VkSubpassDependency dependancy{};
+  dependancy.srcSubpass = VK_SUBPASS_EXTERNAL;
+  dependancy.dstSubpass = 0;
+  dependancy.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+  dependancy.srcAccessMask = 0;
+  dependancy.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+  dependancy.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
+  VkRenderPassCreateInfo renderPassInfo{};
+  renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+  renderPassInfo.attachmentCount = 1;
+  renderPassInfo.pAttachments = &colorAttachment;
+  renderPassInfo.subpassCount = 1;
+  renderPassInfo.pSubpasses = &subpass;
+  renderPassInfo.dependencyCount = 1;
+  renderPassInfo.pDependencies = &dependancy;
+
+
+
+  if (vkCreateRenderPass(m_Device, &renderPassInfo, nullptr, &m_RenderPass) != VK_SUCCESS)
+  {
+    throw std::runtime_error("Failed to create render pass!");
+  }
+}
+
 
 //Pipeline Methods
 
 void Volcano::createGraphicalPipeline()
 {
   auto vertShaderCode = readFile("../src/shaders/vert.spv");
-  auto fragShaderCode = readFile("../src/shaders/vert.spv");
+  auto fragShaderCode = readFile("../src/shaders/frag.spv");
 
   VkShaderModule vertShaderModule = createShaderModule(vertShaderCode);
   VkShaderModule fragShaderModule = createShaderModule(fragShaderCode);
@@ -179,10 +429,30 @@ void Volcano::createGraphicalPipeline()
     throw std::runtime_error("Failed to create Pipeline Layout");
   }
 
+
+  VkGraphicsPipelineCreateInfo pipelineInfo{};
+  pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+  pipelineInfo.stageCount = 2;
+  pipelineInfo.pStages = shaderStages;
+  pipelineInfo.pVertexInputState = &vertexInputInfo;
+  pipelineInfo.pInputAssemblyState = &inputAssembly;
+  pipelineInfo.pViewportState = &viewportInfo;
+  pipelineInfo.pRasterizationState = &rasterizerInfo;
+  pipelineInfo.pMultisampleState = &multiSampleInfo;
+  pipelineInfo.pDepthStencilState = nullptr;
+  pipelineInfo.pColorBlendState = &colorBlending;
+  pipelineInfo.pDynamicState = &dynamicStateInfo;
+
+  pipelineInfo.layout = m_PipelineLayout;
+  pipelineInfo.renderPass = m_RenderPass;
+  pipelineInfo.subpass = 0;
+  pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
+  pipelineInfo.basePipelineIndex = -1;
   
-
-
-
+  if (vkCreateGraphicsPipelines(m_Device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_GraphicsPipeline) != VK_SUCCESS)
+  {
+    throw std::runtime_error("Failed to create graphics pipeline!");
+  }
 
   vkDestroyShaderModule(m_Device, fragShaderModule, nullptr);
   vkDestroyShaderModule(m_Device, vertShaderModule, nullptr);
@@ -698,6 +968,23 @@ VkResult Volcano::CreateDebugUtilsMessengerEXT
 
 void Volcano::onExit()
 {
+  vkDestroySemaphore(m_Device, m_ImageAvailableSemaphore, nullptr);
+  vkDestroySemaphore(m_Device, m_RenderFinishedSemaphore, nullptr);
+  vkDestroyFence(m_Device, m_InFlightFence, nullptr);
+
+
+  vkDestroyCommandPool(m_Device, m_CommandPool, nullptr);
+
+  for (auto framebuffer : m_SwapChainFrameBuffer)
+  {
+    vkDestroyFramebuffer(m_Device, framebuffer, nullptr);
+  }
+
+  vkDestroyPipeline(m_Device, m_GraphicsPipeline, nullptr);
+  vkDestroyPipelineLayout(m_Device, m_PipelineLayout, nullptr);
+  vkDestroyRenderPass(m_Device, m_RenderPass, nullptr);
+
+
   for (auto imageView : m_SwapChainImageViews)
   {
     vkDestroyImageView(m_Device, imageView, nullptr);
